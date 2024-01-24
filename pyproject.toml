@@ -1,0 +1,84 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pybldc"
+description="Tool for flashing a VESC via CAN-bus or serial/USB using Python."
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Kristian Sloth Lauszus", email = "lauszus@gmail.com"},
+]
+requires-python = ">= 3.8"
+dynamic = ["version", "dependencies"]
+keywords = ["VESC", "bldc", "upload", "CAN", "USB"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Repository = "https://github.com/Lauszus/Lauszus"
+Iissues = "https://github.com/Lauszus/pybldc/issues"
+
+[project.scripts]
+pybldc = "pybldc.pybldc:cli"
+
+[tool.setuptools]
+packages = ["pybldc"]
+
+[tool.setuptools.dynamic]
+version = {attr = "pybldc.__version__"}
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.package-data]
+"pybldc" = ["py.typed"]
+
+[project.optional-dependencies]
+extra = [
+    "mypy",
+    "black",
+    "flake8",
+    "flake8-import-order",
+    "flake8-pyproject",
+]
+
+[tool.flake8]
+deps = [
+    "flake8",
+    "flake8-import-order",
+    "flake8-pyproject",
+]
+commands = [
+    "flake8",
+]
+import-order-style = "pycharm"
+max-line-length = 120
+extend-ignore = "E203"
+extend-exclude = ".git,.cache,.eggs,.mypy_cache,.pytest_cache,.tox,.venv,venv,migrations,build"
+
+[tool.mypy]
+python_version = "3.8"
+exclude = ["venv", "build"]
+
+disallow_untyped_defs = true
+disallow_any_unimported = true
+no_implicit_optional = true
+check_untyped_defs = true
+warn_return_any = true
+show_error_codes = true
+warn_unused_ignores = true
+
+[[tool.mypy.overrides]]
+module = [
+    "serial.*",
+    "heatshrink2",
+]
+ignore_missing_imports = true
+
+[tool.black]
+line-length = 120
+skip-string-normalization = false
+exclude = '/(\.git|\.cache|\.mypy_cache|\.pytest_cache|\.tox|\.venv|venv|\.eggs)/'
