@@ -20,8 +20,8 @@ classifiers = [
 ]
 
 [project.urls]
-Repository = "https://github.com/Lauszus/Lauszus"
-Iissues = "https://github.com/Lauszus/pybldc/issues"
+Repository = "https://github.com/Lauszus/pybldc"
+Issues = "https://github.com/Lauszus/pybldc/issues"
 
 [project.scripts]
 pybldc = "pybldc.pybldc:cli"
