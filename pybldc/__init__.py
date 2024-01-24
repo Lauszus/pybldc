@@ -21,7 +21,7 @@
 # Web      :  https://www.lauszus.com
 # e-mail   :  lauszus@gmail.com
 
-__version__ = "0.0.0"
+__version__ = "1.0.0"
 
 __all__ = ["PyBldcCan", "PyBldcSerial"]
 
