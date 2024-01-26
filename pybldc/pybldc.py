@@ -522,7 +522,7 @@ class PyBldcSerial(PyBldcBase):
         super().__init__(logger=logger)
 
         # Open the serial port, but read from it in a thread, so we are not blocking the main loop
-        self._serial = serial.Serial(port=port, baudrate=baudrate, timeout=0.5)
+        self._serial = serial.Serial(port=port, baudrate=baudrate, timeout=0.5, exclusive=True)
         self._shutdown_thread = threading.Event()
         self._received_packet_queue: queue.Queue[List[int]] = queue.Queue()
         self._thread = threading.Thread(
