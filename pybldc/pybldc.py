@@ -117,7 +117,7 @@ class PyBldcBase:
         self.shutdown()
 
     @abc.abstractmethod
-    def shutdown(self, timeout: float = 1.0) -> None:
+    def shutdown(self, timeout: Optional[float] = 1.0) -> None:
         pass
 
     @staticmethod
@@ -427,7 +427,9 @@ class PyBldcCan(PyBldcBase):
     def __enter__(self) -> "PyBldcCan":
         return self
 
-    def shutdown(self, timeout: float = 1.0) -> None:
+    def shutdown(self, timeout: Optional[float] = 1.0) -> None:
+        if timeout is None:
+            raise ValueError('A timeout of "None" is not supported')
         self._can_notifier.stop(timeout=timeout)
         self._can_bus.shutdown()
 
@@ -539,7 +541,7 @@ class PyBldcSerial(PyBldcBase):
     def __enter__(self) -> "PyBldcSerial":
         return self
 
-    def shutdown(self, timeout: float = 1.0) -> None:
+    def shutdown(self, timeout: Optional[float] = 1.0) -> None:
         self._shutdown_thread.set()
         self._thread.join(timeout=timeout)
         self._serial.close()
