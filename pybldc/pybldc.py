@@ -548,7 +548,12 @@ class PyBldcSerial(PyBldcBase):
 
     def ping(self, timeout: float = 1.0) -> bool:
         # We assume that we can ping it if the serial port is open
-        return bool(self._serial.is_open)
+        self._logger.info("PyBldcSerial: Checking if serial port is open")
+        retval = bool(self._serial.is_open)
+        if not retval:
+            # Sleep if the port is not open or this will just fail immediately when called again
+            time.sleep(timeout)
+        return retval
 
     def _send_implementation(self, data: List[int], expected_response: List[int], timeout: float) -> Optional[bool]:
         if len(data) <= 255:
