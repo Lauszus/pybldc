@@ -24,6 +24,7 @@
 import abc
 import argparse
 import logging
+import math
 import queue
 import threading
 import time
@@ -317,7 +318,7 @@ class PyBldcBase:
         expected_response: List[int],
         timeout: float,
     ) -> Optional[bool]:
-        if timeout == 0.0:
+        if math.isclose(timeout, 0.0):
             # We do not actually care about the answer, so return immediately
             return None
 
@@ -332,7 +333,6 @@ class PyBldcBase:
                 self._logger.debug(f"PyBldcBase: Received packet response: {response}, expected: {expected_response}")
 
                 # Make sure it replies with the command as the first byte and "OK" as the second byte
-                # Some commands repeat the data
                 if response[0] == comm_packet_id:
                     return response[1] == 1 and response[2:] == expected_response
             except queue.Empty:
