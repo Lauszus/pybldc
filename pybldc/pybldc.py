@@ -524,7 +524,7 @@ class PyBldcSerial(PyBldcBase):
         # Open the serial port, but read from it in a thread, so we are not blocking the main loop
         self._serial = serial.Serial(port=port, baudrate=baudrate, timeout=0.5, exclusive=True)
         self._shutdown_thread = threading.Event()
-        self._received_packet_queue: queue.Queue[List[int]] = queue.Queue()
+        self._packet_queue: queue.Queue[List[int]] = queue.Queue()
         self._thread = threading.Thread(
             target=self._serial_read_thread,
             name="_serial_read_thread",
@@ -532,7 +532,7 @@ class PyBldcSerial(PyBldcBase):
                 self._serial,
                 self._shutdown_thread,
                 self._logger,
-                self._received_packet_queue,
+                self._packet_queue,
             ),
         )
         self._thread.daemon = False  # Make sure the application joins this before closing down
@@ -576,12 +576,16 @@ class PyBldcSerial(PyBldcBase):
         send_buffer.extend(PyBldcBase._pack_uint16(crc16_ccitt(data)))  # Checksum
         send_buffer.append(3)  # Stop byte
 
+        # Make sure the serial port is still open
+        if not self._serial.is_open:
+            return False
+
         # Send the buffer on the serial interface
         self._serial.write(send_buffer)
 
         # Wait for the response
         return self._wait_for_packet_response(
-            packet_queue=self._received_packet_queue,
+            packet_queue=self._packet_queue,
             comm_packet_id=cast(CommPacketId, data[0]),
             expected_response=expected_response,
             timeout=timeout,
@@ -592,80 +596,91 @@ class PyBldcSerial(PyBldcBase):
         ser: Any,
         shutdown_event: threading.Event,
         logger: logging.Logger,
-        received_packet_queue: queue.Queue[List[int]],
+        packet_queue: queue.Queue[List[int]],
     ) -> None:
         try:
             data_buffer = bytearray()
-            while not shutdown_event.is_set() and ser.is_open:
-                data = ser.read()
-                if data:
-                    data_buffer += data
 
-                    while True:
-                        # Based on "try_decode_packet" in "vesc_tool/packet.cpp"
-                        if len(data_buffer) == 0:
-                            break
+            while not shutdown_event.is_set():
+                if not ser.is_open:
+                    try:
+                        ser.open()
+                        logger.debug("BlhostSerial: Serial port was re-opened")
+                    except serial.serialutil.SerialException:
+                        logger.debug("BlhostSerial: Failed to open serial port", exc_info=True)
+                        time.sleep(1.0)
+                    continue
 
-                        is_len_8b = data_buffer[0] == 2
-                        is_len_16b = data_buffer[0] == 3
-                        is_len_24b = data_buffer[0] == 4
+                try:
+                    data_buffer += ser.read()
+                except serial.serialutil.SerialException:
+                    # This is triggered when the VESC jumps to the bootloader, as the serial port will be closed
+                    ser.close()
+                    logger.debug(
+                        'BlhostSerial: Caught SerialException exception in "_serial_read_thread"', exc_info=True
+                    )
+                    time.sleep(1.0)
+                    continue
 
-                        if not is_len_8b and not is_len_16b and not is_len_24b:
-                            logger.warning(f"_serial_read_thread: Discarding invalid data: {data_buffer[0]}")
+                # Based on "try_decode_packet" in "vesc_tool/packet.cpp"
+                while len(data_buffer) > 0:
+                    is_len_8b = data_buffer[0] == 2
+                    is_len_16b = data_buffer[0] == 3
+                    is_len_24b = data_buffer[0] == 4
+
+                    if not is_len_8b and not is_len_16b and not is_len_24b:
+                        logger.warning(f"_serial_read_thread: Discarding invalid data: {data_buffer[0]}")
+                        data_buffer = data_buffer[1:]  # Discard the fist byte
+                        continue
+
+                    data_start = data_buffer[0]
+                    if len(data_buffer) < data_start:
+                        # We need more data before we can read the data
+                        break
+
+                    if is_len_8b:
+                        data_len = data_buffer[1]
+                        if data_len < 1:
+                            logger.warning(f"_serial_read_thread: Data len is not valid: {data_len} < 1")
+                            data_buffer = data_buffer[1:]  # Discard the fist byte
+                            continue
+                    elif is_len_16b:
+                        data_len = data_buffer[1] << 8 | data_buffer[2]
+                        if data_len < 255:
+                            logger.warning(f"_serial_read_thread: Packet is too short: {data_len} < 255")
+                            data_buffer = data_buffer[1:]  # Discard the fist byte
+                            continue
+                    else:
+                        data_len = data_buffer[1] << 16 | data_buffer[2] << 8 | data_buffer[3]
+                        if data_len < 65535:
+                            logger.warning(f"_serial_read_thread: Packet is too short: {data_len} < 65535")
                             data_buffer = data_buffer[1:]  # Discard the fist byte
                             continue
 
-                        data_start = data_buffer[0]
-                        if len(data_buffer) < data_start:
-                            # We need more data before we can read the data
-                            break
+                    if len(data_buffer) < data_len + data_start + 3:
+                        # Need more data to determine rest of packet
+                        break
 
-                        if is_len_8b:
-                            data_len = data_buffer[1]
-                            if data_len < 1:
-                                logger.warning(f"_serial_read_thread: Data len is not valid: {data_len} < 1")
-                                data_buffer = data_buffer[1:]  # Discard the fist byte
-                                continue
-                        elif is_len_16b:
-                            data_len = data_buffer[1] << 8 | data_buffer[2]
-                            if data_len < 255:
-                                logger.warning(f"_serial_read_thread: Packet is too short: {data_len} < 255")
-                                data_buffer = data_buffer[1:]  # Discard the fist byte
-                                continue
-                        else:
-                            data_len = data_buffer[1] << 16 | data_buffer[2] << 8 | data_buffer[3]
-                            if data_len < 65535:
-                                logger.warning(f"_serial_read_thread: Packet is too short: {data_len} < 65535")
-                                data_buffer = data_buffer[1:]  # Discard the fist byte
-                                continue
+                    parsed_data = data_buffer[data_start : data_start + data_len]
+                    if (
+                        crc16_ccitt(parsed_data)
+                        != data_buffer[data_start + data_len] << 8 | data_buffer[data_start + data_len + 1]
+                    ):
+                        logger.warning("_serial_read_thread: CRC failed")
+                        data_buffer = data_buffer[1:]  # Discard the fist byte
+                        continue
 
-                        if len(data_buffer) < data_len + data_start + 3:
-                            # Need more data to determine rest of packet
-                            break
+                    stop_byte = data_buffer[data_start + data_len + 2]
+                    if stop_byte != 3:
+                        logger.warning(f"_serial_read_thread: Invalid stop byte: {stop_byte}")
+                        data_buffer = data_buffer[1:]  # Discard the fist byte
+                        continue
 
-                        parsed_data = data_buffer[data_start : data_start + data_len]
-                        if (
-                            crc16_ccitt(parsed_data)
-                            != data_buffer[data_start + data_len] << 8 | data_buffer[data_start + data_len + 1]
-                        ):
-                            logger.warning("_serial_read_thread: CRC failed")
-                            data_buffer = data_buffer[1:]  # Discard the fist byte
-                            continue
+                    # The data is now parsed, so advance the buffer to the next message
+                    data_buffer = data_buffer[data_start + data_len + 3 :]
+                    packet_queue.put_nowait(list(parsed_data))
 
-                        stop_byte = data_buffer[data_start + data_len + 2]
-                        if stop_byte != 3:
-                            logger.warning(f"_serial_read_thread: Invalid stop byte: {stop_byte}")
-                            data_buffer = data_buffer[1:]  # Discard the fist byte
-                            continue
-
-                        # The data is now parsed, so advance the buffer to the next message
-                        data_buffer = data_buffer[data_start + data_len + 3 :]
-                        received_packet_queue.put_nowait(list(parsed_data))
-
-                        logger.debug(f"_serial_read_thread: Packet response: {list(parsed_data)})")
-        except serial.serialutil.SerialException:
-            # This is triggered when the VESC jumps to the bootloader, so just ignore it
-            logger.debug('BlhostSerial: Caught SerialException exception in "_serial_read_thread"', exc_info=True)
+                    logger.debug(f"_serial_read_thread: Packet response: {list(parsed_data)})")
         except Exception:
             logger.exception('BlhostSerial: Caught exception in "_serial_read_thread"')
 
