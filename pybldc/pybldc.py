@@ -745,6 +745,7 @@ def cli() -> None:
         "-b",
         "--baudrate",
         "--bitrate",
+        type=int,
         help="The baudrate/bitrate to use for serial/can (defaults to 115200 for serial and 500000 for CAN)",
     )
     optional.add_argument(
