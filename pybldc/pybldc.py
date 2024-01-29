@@ -313,7 +313,7 @@ class PyBldcBase:
 
     def _wait_for_packet_response(
         self,
-        packet_queue: queue.Queue[List[int]],
+        packet_queue: queue.Queue,
         comm_packet_id: CommPacketId,
         expected_response: List[int],
         timeout: float,
@@ -329,7 +329,7 @@ class PyBldcBase:
                 return False
 
             try:
-                response = packet_queue.get(timeout=timeout - dt)
+                response: List[int] = packet_queue.get(timeout=timeout - dt)
                 self._logger.debug(f"PyBldcBase: Received packet response: {response}, expected: {expected_response}")
 
                 # Make sure it replies with the command as the first byte and "OK" as the second byte
@@ -350,7 +350,7 @@ class PyBldcCanListener(can.Listener):
         self._controller_id = controller_id
         self._logger = logger
         self._is_stopped = False
-        self.packet_queue: queue.Queue[List[int]] = queue.Queue()
+        self.packet_queue: queue.Queue = queue.Queue()
         self.pong_event = threading.Event()
         self._hw_type: Optional[HwType] = None
 
@@ -524,7 +524,7 @@ class PyBldcSerial(PyBldcBase):
         # Open the serial port, but read from it in a thread, so we are not blocking the main loop
         self._serial = serial.Serial(port=port, baudrate=baudrate, timeout=0.5, exclusive=True)
         self._shutdown_thread = threading.Event()
-        self._packet_queue: queue.Queue[List[int]] = queue.Queue()
+        self._packet_queue: queue.Queue = queue.Queue()
         self._thread = threading.Thread(
             target=self._serial_read_thread,
             name="_serial_read_thread",
@@ -596,7 +596,7 @@ class PyBldcSerial(PyBldcBase):
         ser: Any,
         shutdown_event: threading.Event,
         logger: logging.Logger,
-        packet_queue: queue.Queue[List[int]],
+        packet_queue: queue.Queue,
     ) -> None:
         try:
             data_buffer = bytearray()
