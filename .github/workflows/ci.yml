@@ -17,7 +17,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-3.8-${{ hashFiles('requirements.txt') }}
+          key: ${{ runner.os }}-3.8-${{ hashFiles('pyproject.toml') }}-${{ hashFiles('requirements.txt') }}
       - name: Update pip
         run: pip install .[extra]
       - name: Check formatting with Black
