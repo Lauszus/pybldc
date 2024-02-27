@@ -384,7 +384,11 @@ class PyBldcCanListener(can.Listener):
                 self.packet_queue.put_nowait(data)
         elif packet_id == CanPacketId.CAN_PACKET_PONG:
             controller_id = msg.data[0]
-            self._hw_type = cast(HwType, msg.data[1])
+            if len(msg) > 1:
+                self._hw_type = cast(HwType, msg.data[1])
+            else:
+                # Older VESC firmwares do not report the HW type
+                self._hw_type = HwType.HW_TYPE_VESC
             if controller_id == self._controller_id:
                 self.pong_event.set()
 
