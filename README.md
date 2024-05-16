@@ -97,6 +97,14 @@ pybldc can reset -id 1
 pybldc serial reset -p /dev/ttyACM0
 ```
 
+#### Increase TX buffer
+
+On Linux you might need to increase the TX buffer size:
+
+```bash
+sudo ip link set can0 txqueuelen 1000
+```
+
 ## Credit
 
 * VESC firmware: https://github.com/vedderb/bldc
