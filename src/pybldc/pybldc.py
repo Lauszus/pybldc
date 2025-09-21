@@ -69,7 +69,7 @@ class HwType(IntEnum):
     HW_TYPE_CUSTOM_MODULE = 2
 
 
-def crc16_ccitt(buf: bytes | list[int]) -> int:
+def crc16_ccitt(buf: bytes | bytearray | list[int]) -> int:
     # fmt:off
     crc16_ccitt_table = [0x0000, 0x1021, 0x2042, 0x3063, 0x4084,
                          0x50a5, 0x60c6, 0x70e7, 0x8108, 0x9129, 0xa14a, 0xb16b, 0xc18c, 0xd1ad,
@@ -320,7 +320,7 @@ class PyBldcBase(abc.ABC):
 
     def _wait_for_packet_response(
         self,
-        packet_queue: queue.Queue,
+        packet_queue: queue.Queue[list[int]],
         comm_packet_id: CommPacketId,
         expected_response: list[int],
         timeout: float,
@@ -357,7 +357,7 @@ class PyBldcCanListener(can.Listener):
         self._controller_id = controller_id
         self._logger = logger
         self._is_stopped = False
-        self.packet_queue: queue.Queue = queue.Queue()
+        self.packet_queue: queue.Queue[list[int]] = queue.Queue()
         self.pong_event = threading.Event()
         self._hw_type: HwType | None = None
 
@@ -525,7 +525,7 @@ class PyBldcSerial(PyBldcBase):
         # Open the serial port, but read from it in a thread, so we are not blocking the main loop
         self._serial = serial.Serial(port=port, baudrate=baudrate, timeout=0.5, exclusive=True)
         self._shutdown_thread = threading.Event()
-        self._packet_queue: queue.Queue = queue.Queue()
+        self._packet_queue: queue.Queue[list[int]] = queue.Queue()
         self._thread = threading.Thread(
             target=self._serial_read_thread,
             name="_serial_read_thread",
@@ -579,7 +579,7 @@ class PyBldcSerial(PyBldcBase):
             return False
 
         # Send the buffer on the serial interface
-        self._serial.write(send_buffer)
+        self._serial.write(bytes(send_buffer))
 
         # Wait for the response
         return self._wait_for_packet_response(
@@ -594,7 +594,7 @@ class PyBldcSerial(PyBldcBase):
         ser: Any,
         shutdown_event: threading.Event,
         logger: logging.Logger,
-        packet_queue: queue.Queue,
+        packet_queue: queue.Queue[list[int]],
     ) -> None:
         try:
             data_buffer = bytearray()

@@ -45,6 +45,12 @@ python_version = "3.9"
 strict = true
 warn_unreachable = true
 
+[[tool.mypy.overrides]]
+module = [
+    "heatshrink2",
+]
+ignore_missing_imports = true
+
 [tool.ruff]
 line-length = 120
 
