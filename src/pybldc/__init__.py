@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from importlib.metadata import version
 
-__all__ = ["PyBldcCan", "PyBldcSerial"]
+__all__ = ["PyBldcCan", "PyBldcSerial", "__version__"]
 
 __version__ = version("pybldc")
 

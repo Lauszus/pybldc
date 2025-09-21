@@ -127,8 +127,7 @@ class PyBldcBase(abc.ABC):
         self.shutdown()
 
     @abc.abstractmethod
-    def shutdown(self, timeout: float | None = 1.0) -> None:
-        pass
+    def shutdown(self, timeout: float | None = 1.0) -> None: ...
 
     @staticmethod
     def chunks(lst: Sequence[int], n: int) -> Generator[Sequence[int]]:
@@ -309,8 +308,7 @@ class PyBldcBase(abc.ABC):
         return True
 
     @abc.abstractmethod
-    def ping(self, timeout: float = 1.0) -> bool:
-        pass
+    def ping(self, timeout: float = 1.0) -> bool: ...
 
     def reset(self) -> None:
         self._logger.info("PyBldcBase: Sending reset command")
@@ -346,8 +344,7 @@ class PyBldcBase(abc.ABC):
                 return False
 
     @abc.abstractmethod
-    def _send_implementation(self, data: list[int], expected_response: list[int], timeout: float) -> bool | None:
-        pass
+    def _send_implementation(self, data: list[int], expected_response: list[int], timeout: float) -> bool | None: ...
 
 
 class PyBldcCanListener(can.Listener):
@@ -755,8 +752,8 @@ def cli() -> None:
     parsed_args = parser.parse_args()
     if parsed_args.hw_interface == "can":
         if parsed_args.controller_id is None:
-            parser.print_help()
-            sys.exit(1)
+            parser.error("The following arguments are required for CAN: -id/--controller-id")
+
         PyBldcImpl: type[PyBldcBase] = PyBldcCan  # noqa: N806
         kwargs = {
             "controller_id": int(parsed_args.controller_id, base=0),
@@ -767,8 +764,8 @@ def cli() -> None:
             kwargs["bitrate"] = parsed_args.baudrate
     else:
         if parsed_args.port is None:
-            parser.print_help()
-            sys.exit(1)
+            parser.error("The following arguments are required for serial: -p/--port")
+
         PyBldcImpl = PyBldcSerial  # noqa: N806
         kwargs = {
             "port": parsed_args.port,
@@ -787,8 +784,7 @@ def cli() -> None:
     with PyBldcImpl(**kwargs) as bldc:
         if parsed_args.command == "upload":
             if parsed_args.binary is None:
-                parser.print_help()
-                sys.exit(1)
+                parser.error("The following arguments are required for upload: -B/--binary")
 
             pbar = None
             result = False
