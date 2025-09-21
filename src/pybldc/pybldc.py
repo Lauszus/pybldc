@@ -21,22 +21,27 @@
 # Web      :  https://www.lauszus.com
 # e-mail   :  lauszus@gmail.com
 
+from __future__ import annotations
+
 import abc
 import argparse
 import logging
 import math
 import queue
+import sys
 import threading
 import time
+from collections.abc import Generator, Sequence
 from enum import IntEnum
 from timeit import default_timer as timer
 from types import TracebackType
-from typing import Any, Generator, List, Optional, Type, Union, cast
+from typing import Any, cast
 
 import can
 import heatshrink2
 import serial
 from tqdm import tqdm
+from typing_extensions import Self
 
 from . import __version__
 
@@ -64,7 +69,7 @@ class HwType(IntEnum):
     HW_TYPE_CUSTOM_MODULE = 2
 
 
-def crc16_ccitt(buf: Union[bytes, List[int]]) -> int:
+def crc16_ccitt(buf: bytes | list[int]) -> int:
     # fmt:off
     crc16_ccitt_table = [0x0000, 0x1021, 0x2042, 0x3063, 0x4084,
                          0x50a5, 0x60c6, 0x70e7, 0x8108, 0x9129, 0xa14a, 0xb16b, 0xc18c, 0xd1ad,
@@ -103,25 +108,30 @@ def crc16_ccitt(buf: Union[bytes, List[int]]) -> int:
     return cksum
 
 
-class PyBldcBase:
+class PyBldcBase(abc.ABC):
     def __init__(
         self,
         logger: logging.Logger,
     ) -> None:
         self._logger = logger
 
-    def __enter__(self) -> "PyBldcBase":
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, exc_type: Type[BaseException], exc_value: BaseException, traceback: TracebackType) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         self.shutdown()
 
     @abc.abstractmethod
-    def shutdown(self, timeout: Optional[float] = 1.0) -> None:
+    def shutdown(self, timeout: float | None = 1.0) -> None:
         pass
 
     @staticmethod
-    def chunks(lst: List[int], n: int) -> Generator[List[int], None, None]:
+    def chunks(lst: Sequence[int], n: int) -> Generator[Sequence[int]]:
         for i in range(0, len(lst), n):
             yield lst[i : i + n]
 
@@ -132,7 +142,7 @@ class PyBldcBase:
         ping_repeat: int = 3,
         attempts: int = 1,
         is_bootloader: bool = False,
-    ) -> Generator[Union[float, bool], None, None]:
+    ) -> Generator[float | bool]:
         if attempts < 1:
             raise ValueError('PyBldcBase: "attempts" has to be greater than 0')
 
@@ -154,14 +164,14 @@ class PyBldcBase:
         yield upload_result
 
     @staticmethod
-    def _pack_uint16(data: int) -> List[int]:
+    def _pack_uint16(data: int) -> list[int]:
         return [
             (data >> 8) & 0xFF,
             data & 0xFF,
         ]
 
     @staticmethod
-    def _pack_uint24(data: int) -> List[int]:
+    def _pack_uint24(data: int) -> list[int]:
         return [
             (data >> 16) & 0xFF,
             (data >> 8) & 0xFF,
@@ -169,7 +179,7 @@ class PyBldcBase:
         ]
 
     @staticmethod
-    def _pack_uint32(data: int) -> List[int]:
+    def _pack_uint32(data: int) -> list[int]:
         return [
             (data >> 24) & 0xFF,
             (data >> 16) & 0xFF,
@@ -211,10 +221,7 @@ class PyBldcBase:
         else:
             self._logger.info(f"PyBldcBase: Erasing {binary_data_len} bytes")
             if not self._send_implementation(
-                [
-                    CommPacketId.COMM_ERASE_NEW_APP,
-                ]
-                + PyBldcBase._pack_uint32(binary_data_len),
+                [CommPacketId.COMM_ERASE_NEW_APP, *PyBldcBase._pack_uint32(binary_data_len)],
                 [],
                 timeout=timeout,
             ):
@@ -283,7 +290,7 @@ class PyBldcBase:
             offset = start_addr + (chunk_size * i)
             offset_list = PyBldcBase._pack_uint32(offset)
             if not self._send_implementation(
-                [CommPacketId.COMM_WRITE_NEW_APP_DATA] + offset_list + d,
+                [CommPacketId.COMM_WRITE_NEW_APP_DATA, *offset_list, *d],
                 expected_response=offset_list,
                 timeout=timeout,
             ):
@@ -315,9 +322,9 @@ class PyBldcBase:
         self,
         packet_queue: queue.Queue,
         comm_packet_id: CommPacketId,
-        expected_response: List[int],
+        expected_response: list[int],
         timeout: float,
-    ) -> Optional[bool]:
+    ) -> bool | None:
         if math.isclose(timeout, 0.0):
             # We do not actually care about the answer, so return immediately
             return None
@@ -329,7 +336,7 @@ class PyBldcBase:
                 return False
 
             try:
-                response: List[int] = packet_queue.get(timeout=timeout - dt)
+                response: list[int] = packet_queue.get(timeout=timeout - dt)
                 self._logger.debug(f"PyBldcBase: Received packet response: {response}, expected: {expected_response}")
 
                 # Make sure it replies with the command as the first byte and "OK" as the second byte
@@ -339,7 +346,7 @@ class PyBldcBase:
                 return False
 
     @abc.abstractmethod
-    def _send_implementation(self, data: List[int], expected_response: List[int], timeout: float) -> Optional[bool]:
+    def _send_implementation(self, data: list[int], expected_response: list[int], timeout: float) -> bool | None:
         pass
 
 
@@ -352,10 +359,10 @@ class PyBldcCanListener(can.Listener):
         self._is_stopped = False
         self.packet_queue: queue.Queue = queue.Queue()
         self.pong_event = threading.Event()
-        self._hw_type: Optional[HwType] = None
+        self._hw_type: HwType | None = None
 
     @property
-    def hw_type(self) -> Optional[HwType]:
+    def hw_type(self) -> HwType | None:
         return self._hw_type
 
     def on_message_received(self, msg: can.Message) -> None:
@@ -428,10 +435,7 @@ class PyBldcCan(PyBldcBase):
         self._can_listener = PyBldcCanListener(self._id, self._controller_id, self._logger)
         self._can_notifier = can.Notifier(self._can_bus, [self._can_listener])
 
-    def __enter__(self) -> "PyBldcCan":
-        return self
-
-    def shutdown(self, timeout: Optional[float] = 1.0) -> None:
+    def shutdown(self, timeout: float | None = 1.0) -> None:
         if timeout is None:
             raise ValueError('A timeout of "None" is not supported')
         self._can_notifier.stop(timeout=timeout)
@@ -443,16 +447,17 @@ class PyBldcCan(PyBldcBase):
         self._can_send_packet(CanPacketId.CAN_PACKET_PING, [self._id])
         return self._can_listener.pong_event.wait(timeout)
 
-    def _send_implementation(self, data: List[int], expected_response: List[int], timeout: float) -> Optional[bool]:
+    def _send_implementation(self, data: list[int], expected_response: list[int], timeout: float) -> bool | None:
         """
         See: "comm_can_send_buffer" in "bldc/comm/comm_can.c" and
              "packetDataToSend" in "vesc_tool/vescinterface.cpp"
         """
         if len(data) <= 6:
-            send_buffer: List[int] = [
+            send_buffer: list[int] = [
                 self._id,
                 0,  # Process packet at receiver and send a response
-            ] + list(data)
+                *data,
+            ]
 
             self._can_send_packet(CanPacketId.CAN_PACKET_PROCESS_SHORT_BUFFER, send_buffer)
         else:
@@ -463,10 +468,7 @@ class PyBldcCan(PyBldcBase):
                 end_a = i + 7
 
                 send_buffer = [i]
-                if i + 7 <= len(data):
-                    send_len = 7
-                else:
-                    send_len = len(data) - i
+                send_len = 7 if i + 7 <= len(data) else len(data) - i
                 send_buffer += data[i : i + send_len]
 
                 self._can_send_packet(CanPacketId.CAN_PACKET_FILL_RX_BUFFER, send_buffer)
@@ -477,10 +479,7 @@ class PyBldcCan(PyBldcBase):
 
             for i in range(end_a, len(data), 6):
                 send_buffer = PyBldcBase._pack_uint16(i)
-                if i + 6 <= len(data):
-                    send_len = 6
-                else:
-                    send_len = len(data) - i
+                send_len = 6 if i + 6 <= len(data) else len(data) - i
                 send_buffer += data[i : i + send_len]
 
                 self._can_send_packet(CanPacketId.CAN_PACKET_FILL_RX_BUFFER_LONG, send_buffer)
@@ -489,14 +488,12 @@ class PyBldcCan(PyBldcBase):
                 # TODO: Figure out how to block until the message is sent or determine if the buffer is full
                 time.sleep(0.0001)
 
-            send_buffer = (
-                [
-                    self._id,
-                    0,  # Process packet at receiver and send a response
-                ]
-                + PyBldcBase._pack_uint16(len(data))
-                + PyBldcBase._pack_uint16(crc16_ccitt(data))
-            )
+            send_buffer = [
+                self._id,
+                0,  # Process packet at receiver and send a response
+                *PyBldcBase._pack_uint16(len(data)),
+                *PyBldcBase._pack_uint16(crc16_ccitt(data)),
+            ]
 
             self._can_send_packet(CanPacketId.CAN_PACKET_PROCESS_RX_BUFFER, send_buffer)
 
@@ -508,7 +505,7 @@ class PyBldcCan(PyBldcBase):
             timeout=timeout,
         )
 
-    def _can_send_packet(self, can_packet_id: CanPacketId, data: List[int]) -> None:
+    def _can_send_packet(self, can_packet_id: CanPacketId, data: list[int]) -> None:
         msg = can.Message(arbitration_id=self._controller_id | (can_packet_id << 8), data=data, is_extended_id=True)
         self._logger.debug(
             f"PyBldcBase: Sending ID: 0x{msg.arbitration_id:08X}, len: {msg.dlc}, data: {list(msg.data)}"
@@ -542,10 +539,7 @@ class PyBldcSerial(PyBldcBase):
         self._thread.daemon = False  # Make sure the application joins this before closing down
         self._thread.start()
 
-    def __enter__(self) -> "PyBldcSerial":
-        return self
-
-    def shutdown(self, timeout: Optional[float] = 1.0) -> None:
+    def shutdown(self, timeout: float | None = 1.0) -> None:
         self._shutdown_thread.set()
         self._thread.join(timeout=timeout)
         self._serial.close()
@@ -559,7 +553,7 @@ class PyBldcSerial(PyBldcBase):
             time.sleep(timeout)
         return retval
 
-    def _send_implementation(self, data: List[int], expected_response: List[int], timeout: float) -> Optional[bool]:
+    def _send_implementation(self, data: list[int], expected_response: list[int], timeout: float) -> bool | None:
         if len(data) <= 255:
             send_buffer = [
                 2,  # Start of data
@@ -762,8 +756,8 @@ def cli() -> None:
     if parsed_args.hw_interface == "can":
         if parsed_args.controller_id is None:
             parser.print_help()
-            exit(1)
-        PyBldcImpl: Type[PyBldcBase] = PyBldcCan
+            sys.exit(1)
+        PyBldcImpl: type[PyBldcBase] = PyBldcCan  # noqa: N806
         kwargs = {
             "controller_id": int(parsed_args.controller_id, base=0),
             "interface": parsed_args.interface,
@@ -774,8 +768,8 @@ def cli() -> None:
     else:
         if parsed_args.port is None:
             parser.print_help()
-            exit(1)
-        PyBldcImpl = PyBldcSerial
+            sys.exit(1)
+        PyBldcImpl = PyBldcSerial  # noqa: N806
         kwargs = {
             "port": parsed_args.port,
         }
@@ -794,7 +788,7 @@ def cli() -> None:
         if parsed_args.command == "upload":
             if parsed_args.binary is None:
                 parser.print_help()
-                exit(1)
+                sys.exit(1)
 
             pbar = None
             result = False
@@ -823,22 +817,22 @@ def cli() -> None:
                 pbar.close()  # Make sure it is closed
             if result is True:
                 logger.info("Uploading succeeded")
-                exit(0)
+                sys.exit(0)
             else:
                 logger.error("Uploading failed")
-                exit(1)
+                sys.exit(1)
         elif parsed_args.command == "ping":
             for i in range(parsed_args.ping_repeat):
                 if bldc.ping(timeout=parsed_args.timeout):
                     logger.info(f"Found VESC in {i + 1} attempt(s)")
-                    exit(0)
+                    sys.exit(0)
 
             logger.error("Timed out waiting for ping response for VESC")
-            exit(1)
+            sys.exit(1)
         else:
             bldc.reset()
             logger.info("VESC was reset")
-            exit(0)
+            sys.exit(0)
 
 
 if __name__ == "__main__":

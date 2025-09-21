@@ -21,6 +21,8 @@
 # Web      :  https://www.lauszus.com
 # e-mail   :  lauszus@gmail.com
 
+from __future__ import annotations
+
 if __name__ == "__main__":
     from .pybldc import cli
 

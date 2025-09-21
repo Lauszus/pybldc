@@ -21,6 +21,8 @@
 # Web      :  https://www.lauszus.com
 # e-mail   :  lauszus@gmail.com
 
+from __future__ import annotations
+
 import pathlib
 import sys
 
