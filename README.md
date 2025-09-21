@@ -1,6 +1,6 @@
 # pybldc
 
-#### Developed by Kristian Sloth Lauszus, 2024
+#### Developed by Kristian Sloth Lauszus, 2024-2025
 
 The code is released under the GNU General Public License v3.0.
 _________

@@ -6,4 +6,4 @@ venv*/
 build/
 dist/
 *.bin
-__pycache__/
+.coverage

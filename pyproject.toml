@@ -1,22 +1,32 @@
-[build-system]
-requires = ["setuptools", "setuptools-scm"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "pybldc"
+version = "1.0.4"
 description="Tool for flashing a VESC via CAN-bus or serial/USB using Python."
 readme = "README.md"
 license = {file = "LICENSE"}
 authors = [
     {name = "Kristian Sloth Lauszus", email = "lauszus@gmail.com"},
 ]
-requires-python = ">= 3.8"
-dynamic = ["version", "dependencies"]
+requires-python = ">=3.9"
 keywords = ["VESC", "bldc", "upload", "CAN", "USB"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Operating System :: OS Independent",
+]
+dependencies = [
+    "heatshrink2",
+    "pyserial",
+    "python-can>=4.3.0",
+    "tqdm",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.18.2",
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+    "pytest-xdist[psutil]>=3.8.0",
 ]
 
 [project.urls]
@@ -26,59 +36,61 @@ Issues = "https://github.com/Lauszus/pybldc/issues"
 [project.scripts]
 pybldc = "pybldc.pybldc:cli"
 
-[tool.setuptools]
-packages = ["pybldc"]
-
-[tool.setuptools.dynamic]
-version = {attr = "pybldc.__version__"}
-dependencies = {file = ["requirements.txt"]}
-
-[tool.setuptools.package-data]
-"pybldc" = ["py.typed"]
-
-[project.optional-dependencies]
-extra = [
-    "mypy",
-    "black",
-    "flake8",
-    "flake8-import-order",
-    "flake8-pyproject",
-]
-
-[tool.flake8]
-deps = [
-    "flake8",
-    "flake8-import-order",
-    "flake8-pyproject",
-]
-commands = [
-    "flake8",
-]
-import-order-style = "pycharm"
-max-line-length = 120
-extend-ignore = "E203"
-extend-exclude = ".git,.cache,.eggs,.mypy_cache,.pytest_cache,.tox,.venv,venv,migrations,build"
+[build-system]
+requires = ["uv_build>=0.8.19,<0.9.0"]
+build-backend = "uv_build"
 
 [tool.mypy]
-python_version = "3.8"
-exclude = ["venv", "build"]
+python_version = "3.9"
+strict = true
+warn_unreachable = true
 
-disallow_untyped_defs = true
-disallow_any_unimported = true
-no_implicit_optional = true
-check_untyped_defs = true
-warn_return_any = true
-show_error_codes = true
-warn_unused_ignores = true
-
-[[tool.mypy.overrides]]
-module = [
-    "serial.*",
-    "heatshrink2",
-]
-ignore_missing_imports = true
-
-[tool.black]
+[tool.ruff]
 line-length = 120
-skip-string-normalization = false
-exclude = '/(\.git|\.cache|\.mypy_cache|\.pytest_cache|\.tox|\.venv|venv|\.eggs)/'
+
+[tool.ruff.lint]
+select = [
+    "A",  # flake8-builtins
+    "E", # pycodestyle (error)
+    "W", # pycodestyle (warning)
+    "F", # pyflakes
+    "FA", # flake8-future-annotations
+    "B", # bugbear
+    "B9",
+    "C4", # flake8-comprehensions
+    "SIM", # flake8-simplify
+    "I", # isort
+    "N",  # pep8-naming
+    "UP", # pyupgrade
+    "PIE", # flake8-pie
+    "PGH", # pygrep-hooks
+    "PYI", # flake8-pyi
+    "RUF", # Ruff-specific rules
+    "ANN", # flake8-annotations
+    "ASYNC", # flake8-async
+    "YTT",  # flake8-2020
+    "FAST", # FastAPI
+    "PLR1722",  # Use sys.exit() instead of exit()
+    "DTZ003",  # Make sure to use timezone-aware UTC datetimes
+    "DTZ004",
+    "UP017", # Use `datetime.UTC` alias
+]
+ignore = [
+    "ANN401", # Allow use of `Any` in type annotations
+    "PYI041", # Do not convert `int | float` to `float`
+]
+future-annotations = true
+
+[tool.ruff.lint.isort]
+required-imports = ["from __future__ import annotations"]
+
+[tool.ruff.format]
+skip-magic-trailing-comma = false
+
+[tool.coverage.run]
+branch = true
+relative_files = true
+omit = [
+    "*/__init__.py",
+    "*/__main__.py",
+]

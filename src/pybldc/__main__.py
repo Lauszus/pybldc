@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright (C) 2024  Kristian Sloth Lauszus.
+# Copyright (C) 2024-2025  Kristian Sloth Lauszus.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
