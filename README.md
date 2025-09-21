@@ -22,16 +22,33 @@ pip install .
 Or install the latest release from PyPI:
 
 ```bash
-pip3 install -U pybldc
+pip install -U pybldc
 ```
 
 ### CLI
 
-A handy CLI tool is included:
+A handy CLI tool is included.
+
+I recommend using [uvx](https://github.com/astral-sh/uv) to run the CLI tool:
 
 ```bash
-$ pybldc -h
-usage: pybldc [-id CONTROLLER_ID] [-i INTERFACE] [-l CHANNEL] [-p PORT] [-h] [--version] [-B BINARY] [--bootloader] [-t TIMEOUT] [-r PING_REPEAT] [-b BAUDRATE] [--debug] {can,serial} {upload,ping,reset}
+uvx pybldc --help
+```
+
+Or you can install it in your path:
+
+```bash
+uv tool install pybldc
+pybldc --help
+```
+
+__Usage__
+
+```
+usage: pybldc [-id CONTROLLER_ID] [-i INTERFACE] [-l CHANNEL] [-p PORT] [-h]
+              [--version] [-B BINARY] [--bootloader] [-t TIMEOUT]
+              [-r PING_REPEAT] [-b BAUDRATE] [--debug]
+              {can,serial} {upload,ping,reset}
 
 positional arguments:
   {can,serial}          Communicate with the target via either CAN or serial
@@ -69,31 +86,31 @@ optional arguments:
 
 __Upload__
 
-```
+```bash
 pybldc can upload -id 1 -B VESC.bin
 ```
 
-```
+```bash
 pybldc serial upload -p /dev/ttyACM0 -B VESC.bin
 ```
 
 __Ping__
 
-```
+```bash
 pybldc can ping -id 1
 ```
 
-```
+```bash
 pybldc serial ping -p /dev/ttyACM0
 ```
 
 __Reset__
 
-```
+```bash
 pybldc can reset -id 1
 ```
 
-```
+```bash
 pybldc serial reset -p /dev/ttyACM0
 ```
 
