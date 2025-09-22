@@ -1,6 +1,6 @@
 [project]
 name = "pybldc"
-version = "1.0.4"
+version = "1.1.0"
 description="Tool for flashing a VESC via CAN-bus or serial/USB using Python."
 readme = "README.md"
 license = {file = "LICENSE"}
