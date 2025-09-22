@@ -88,31 +88,31 @@ optional arguments:
 __Upload__
 
 ```bash
-pybldc can upload -id 1 -B VESC.bin
+uvx pybldc can upload -id 1 -B VESC.bin
 ```
 
 ```bash
-pybldc serial upload -p /dev/ttyACM0 -B VESC.bin
+uvx pybldc serial upload -p /dev/ttyACM0 -B VESC.bin
 ```
 
 __Ping__
 
 ```bash
-pybldc can ping -id 1
+uvx pybldc can ping -id 1
 ```
 
 ```bash
-pybldc serial ping -p /dev/ttyACM0
+uvx pybldc serial ping -p /dev/ttyACM0
 ```
 
 __Reset__
 
 ```bash
-pybldc can reset -id 1
+uvx pybldc can reset -id 1
 ```
 
 ```bash
-pybldc serial reset -p /dev/ttyACM0
+uvx pybldc serial reset -p /dev/ttyACM0
 ```
 
 #### Increase TX buffer
