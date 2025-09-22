@@ -44,6 +44,7 @@ from tqdm import tqdm
 from typing_extensions import Self
 
 from . import __version__
+from .logger import ColoredFormatter, EscapeCodes
 
 
 class CanPacketId(IntEnum):
@@ -776,9 +777,12 @@ def cli() -> None:
     # Print all log output directly in the terminal
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG if parsed_args.debug else logging.INFO)
+
+    formatter = ColoredFormatter("[%(log_color)s%(levelname)s%(reset)s] %(message)s")
     stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
+    stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
+
     kwargs["logger"] = logger
 
     with PyBldcImpl(**kwargs) as bldc:
@@ -786,6 +790,8 @@ def cli() -> None:
             if parsed_args.binary is None:
                 parser.error("The following arguments are required for upload: -B/--binary")
 
+            # Show info message in light green to match logging formatter
+            info = EscapeCodes.color_text("INFO", EscapeCodes.LIGHT_GREEN)
             pbar = None
             result = False
             for upload_progress in bldc.upload(
@@ -798,7 +804,7 @@ def cli() -> None:
                     if pbar is None:
                         # Create it here, so the progress is not printed before we actually start uploading
                         pbar = tqdm(
-                            desc="[INFO] Upload progress",
+                            desc=f"[{info}] Upload progress",
                             total=100,
                             bar_format="{l_bar}{bar}| [{elapsed}]",
                             dynamic_ncols=True,
