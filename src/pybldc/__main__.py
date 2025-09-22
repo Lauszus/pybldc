@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# Copyright (C) 2024  Kristian Sloth Lauszus.
+# Copyright (C) 2024-2025  Kristian Sloth Lauszus.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,8 +21,9 @@
 # Web      :  https://www.lauszus.com
 # e-mail   :  lauszus@gmail.com
 
-__version__ = "1.0.4"
+from __future__ import annotations
 
-__all__ = ["PyBldcCan", "PyBldcSerial"]
+if __name__ == "__main__":
+    from .pybldc import cli
 
-from .pybldc import PyBldcCan, PyBldcSerial
+    cli()
