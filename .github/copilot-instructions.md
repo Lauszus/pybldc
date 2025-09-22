@@ -5,7 +5,7 @@ make test
 ```
 
 Additional arguments can be passed to pytest by using the `PYTEST_ARGS` environment variable.
-For example, to run only the `test_pyblhost` test:
+For example, to run only the `test_pybldc` test:
 
 ```bash
 make test PYTEST_ARGS="-k test_pybldc"
