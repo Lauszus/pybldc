@@ -6,6 +6,7 @@ The code is released under the GNU General Public License v3.0.
 _________
 [![PyPI](https://img.shields.io/pypi/v/pybldc.svg)](https://pypi.org/project/pybldc)
 [![CI](https://github.com/Lauszus/pybldc/actions/workflows/ci.yml/badge.svg)](https://github.com/Lauszus/pybldc/actions/workflows/ci.yml)
+[![Coverage badge](https://raw.githubusercontent.com/Lauszus/pybldc/python-coverage-comment-action-data/badge.svg)](https://htmlpreview.github.io/?https://github.com/Lauszus/pybldc/blob/python-coverage-comment-action-data/htmlcov/index.html)
 
 ## Purpose
 
